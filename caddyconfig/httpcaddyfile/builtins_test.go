@@ -37,8 +37,7 @@ func TestLogDirectiveSyntax(t *testing.T) {
 					format filter {
 						wrap console
 						fields {
-							common_log delete
-							request>remote_addr ip_mask {
+							request>remote_ip ip_mask {
 								ipv4 24
 								ipv6 32
 							}
@@ -47,7 +46,7 @@ func TestLogDirectiveSyntax(t *testing.T) {
 				}
 			}
 			`,
-			output:      `{"logging":{"logs":{"default":{"exclude":["http.log.access.log0"]},"log0":{"encoder":{"fields":{"common_log":{"filter":"delete"},"request\u003eremote_addr":{"filter":"ip_mask","ipv4_cidr":24,"ipv6_cidr":32}},"format":"filter","wrap":{"format":"console"}},"include":["http.log.access.log0"]}}},"apps":{"http":{"servers":{"srv0":{"listen":[":8080"],"logs":{"default_logger_name":"log0"}}}}}}`,
+			output:      `{"logging":{"logs":{"default":{"exclude":["http.log.access.log0"]},"log0":{"encoder":{"fields":{"request\u003eremote_ip":{"filter":"ip_mask","ipv4_cidr":24,"ipv6_cidr":32}},"format":"filter","wrap":{"format":"console"}},"include":["http.log.access.log0"]}}},"apps":{"http":{"servers":{"srv0":{"listen":[":8080"],"logs":{"default_logger_name":"log0"}}}}}}`,
 			expectError: false,
 		},
 		{
@@ -150,6 +149,27 @@ func TestRedirDirectiveSyntax(t *testing.T) {
 			expectError: false,
 		},
 		{
+			// this is now allowed so a Location header
+			// can be written and consumed by JS
+			// in the case of XHR requests
+			input: `:8080 {
+				redir * :8081 401
+			}`,
+			expectError: false,
+		},
+		{
+			input: `:8080 {
+				redir * :8081 402
+			}`,
+			expectError: true,
+		},
+		{
+			input: `:8080 {
+				redir * :8081 {http.reverse_proxy.status_code}
+			}`,
+			expectError: false,
+		},
+		{
 			input: `:8080 {
 				redir /old.html /new.html htlm
 			}`,
@@ -158,12 +178,6 @@ func TestRedirDirectiveSyntax(t *testing.T) {
 		{
 			input: `:8080 {
 				redir * :8081 200
-			}`,
-			expectError: true,
-		},
-		{
-			input: `:8080 {
-				redir * :8081 400
 			}`,
 			expectError: true,
 		},
